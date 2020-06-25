@@ -39,10 +39,15 @@ def find_dominant_frequencies(data, sample_rate):
     return res
 
 def remove_dc_bias(data):
-    # Set the first few indicies in the frequency
-    # domain to 0 to cancel out DC bias
-    data[:,:4] = 0
-    return data
+    # Perform 1/n correction.
+    # Subtract a weighted factor from the vector
+    res = np.empty(data.shape, dtype=data.dtype)
+    factor = np.empty((data.shape[1],), dtype=data.dtype)
+    for i in range(len(factor)):
+        factor[i] = 1 / (i+1)
+    for num, group in enumerate(data):
+        res[num] = group - (group * factor)
+    return res
 
 def frequency_domain(data):
     # Map the individual groups of the track
