@@ -47,7 +47,7 @@ def remove_dc_bias(data):
 def frequency_domain(data):
     # Map the individual groups of the track
     # from the time domain into the frequency space.
-    res = np.empty(data.shape, dtype=data.dtype)
+    res = np.empty(data.shape, dtype=np.float64)
     for i, group in enumerate(data):
         res[i] = np.abs(dct(group, norm='ortho'))
     return res
