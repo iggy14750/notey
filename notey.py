@@ -1,22 +1,83 @@
 #!/usr/bin/python3
 
 import math
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import dct
+from scipy.fft import fft
 from scipy.io import wavfile
+from scipy.signal.windows import blackman
 import sys
+
+A4 = 440
+NOTE_NAMES = ["A","A#","B","C","C#","D","D#","E","F","F#","G","G#"]
+NOTE_THRESH = 30000 # Open to change
 
 def main():
     filename = sys.argv[1]
     sample_rate, data = wavfile.read(filename)
     print("Sample rate:", sample_rate)
     data = normalize_to_mono(data)
-    data = group_track(data, sample_rate/10) # 100 ms groups
-    print("Grouped into", len(data), "groups")
+    #data = group_track(data, sample_rate/10) # 100 ms groups
+    #print("Grouped into", len(data), "groups")
+    window = blackman(len(data))
+    data = data * window
     data = frequency_domain(data)
-    data = remove_dc_bias(data)
-    data = find_dominant_frequencies(data, sample_rate)
+    print("Frequency Domain shape", data.shape)
+    indicies = indicies_gt_thresh(data, NOTE_THRESH)[1:]
+    # We need the X-axis to be freq, Y to be amplitude
+    freqs = list(map(lambda indx : index_to_freq(indx, len(data), sample_rate), indicies))
+    #freqs = indicies
+    notes = set()
+    for freq in freqs:
+        notes.add(freq_to_note_name(freq))
+    print("Significant notes: {} over thresh {}".format(notes, NOTE_THRESH))
+    print("Made of frequencies: {}".format(freqs))
+    print("Data shape: {}; window shape: {}".format(data.shape, window.shape))
+    display(data[:1000]) #, 10*NOTE_THRESH*window[:1000])
+    #data = find_dominant_frequencies(data, sample_rate)
     print(data)
+
+def index_to_freq(index, N, sample_rate):
+    # Yeah, I'm just not using the sine (complex) side
+    assert index <= N, "N={} given index={}".format(N, index)
+    factor = index / N
+    return sample_rate * factor
+
+# TODO: Let's test these functions using the data at
+# https://www.phys.unsw.edu.au/jw/notes.html
+
+def semitones_from_a4_to_freq(semitones):
+    return A4 * (2 ** (semitones/12))
+
+def freq_to_semitones_from_a4(freq):
+    assert type(freq) in (float, int), "Freq invalid type: {}".format(type(freq))
+    if type(freq) is float:
+        #assert not freq.isnan(), "Freq is NaN"
+        pass
+    assert freq > 0, "Freq not positive: {}".format(freq)
+    pos = freq / A4
+    print("Attempting freq_to_semi with {} {}...".format(type(freq), freq))
+    exp = math.log2(pos)
+    return 12 * exp
+
+def freq_to_note_name(freq):
+    semitones = freq_to_semitones_from_a4(freq)
+    tones = round(semitones)
+    note = NOTE_NAMES[tones % 12]
+    octave = math.floor(semitones/12)
+    return "{}{}".format(note, 4+octave)
+
+def indicies_gt_thresh(array, threshold):
+    return list(map(int, np.argwhere(array >= threshold).flatten()))
+
+def display(*args):
+    figure, ax = plt.subplots()
+    for data in args:
+        ax.plot(data)
+    plt.grid()
+    plt.show()
 
 def n2hz(n, N, sampling_freq=44100):
     # Tell me the actual audio frequency
@@ -52,9 +113,12 @@ def remove_dc_bias(data):
 def frequency_domain(data):
     # Map the individual groups of the track
     # from the time domain into the frequency space.
-    res = np.empty(data.shape, dtype=np.float64)
-    for i, group in enumerate(data):
-        res[i] = np.abs(dct(group, norm='ortho'))
+    #res = np.empty(data.shape, dtype=np.float64)
+    #res = np.abs(dct(data, norm="ortho"))
+    res = dct(data, norm="ortho")
+    res = np.abs(fft(data, norm="ortho"))
+    #for i, group in enumerate(data):
+    #    res[i] = np.abs(dct(group, norm='ortho'))
     return res
 
 def normalize_to_mono(data):
