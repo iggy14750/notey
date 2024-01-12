@@ -36,6 +36,9 @@ class Note:
         self._freq = (index * sample_rate) / N
 
     def __str__(self):
+        return self.name()
+
+    def __repr__(self):
         return "{}: {} Hz; index={}".format(self.name(), self._freq, self._index)
 
     def freq(self):
@@ -78,15 +81,8 @@ class Note:
             note {}
             semis_from_c4 {}
             octave {}
-            """.format(
-                self._freq,
-                pos,
-                exp,
-                semitones,
-                tones,
-                note,
-                semitones_from_c4,
-                octave
+            """.format(self._freq, pos, exp, semitones,
+                tones, note, semitones_from_c4, octave
             ))
         return "{}{}".format(note, 4+octave)
 
@@ -97,10 +93,11 @@ class Note:
         return self._amplitude
 
 
-# sample rate = 44.1kHz
-N = 441000
 
 class TestNote(unittest.TestCase):
+
+    # sample rate = 44.1kHz
+    N = 441000
 
     def freq_to_index(self, freq):
         #return round(self.N * (freq / self.sample_rate))
@@ -116,7 +113,7 @@ class TestNote(unittest.TestCase):
             next(note_table) # Skip the header row
             for row in note_table:
                 index = self.freq_to_index(float(row[FREQ]))
-                note = Note(N, N, index, 0)
+                note = Note(self.N, self.N, index, 0)
                 self.assertEqual(index, note.index())
                 exp = float(row[FREQ])
                 act = note.freq()
